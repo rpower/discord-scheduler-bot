@@ -140,7 +140,8 @@ async def help(bot, args, message):
         '`[YYYY-MM-DD HH:MM]` should be the date and 24 hour time of the event you are creating\n'
         '`[attendees]` with at list of attendees from the server\n\n'
         'List all upcoming events: `!schedule list`\n\n'
-        'Remove an upcoming event: `!schedule delete [event_id]`')
+        'Remove an upcoming event: `!schedule delete [event_id]`\n'
+        'More information: https://github.com/rpower/discord-scheduler-bot')
     bot.logger.info(f'Listed help message in server {message.guild.id}')
     await message.channel.send(help_message)
 
