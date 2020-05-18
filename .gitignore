@@ -4,6 +4,7 @@ passenger.log
 useful_commands.txt
 .idea/
 bot.log
+startup.sh
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

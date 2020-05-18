@@ -43,7 +43,7 @@ async def create(bot, args, message):
             embed.add_field(name = 'Attendees', value = attendees_list, inline = False)
             embed.set_author(name = message.author.name, icon_url = message.author.avatar_url)
             embed.set_thumbnail(url = bot.credentials['discord']['avatar_url'])
-            embed.set_footer(text = f'Attendeess will be reminded {reminder_time} minutes beforehand')
+            embed.set_footer(text = f'Attendees will be reminded {reminder_time} minutes beforehand')
             await message.channel.send(embed = embed)
             await message.channel.send(attendees_list)
         except Exception as e:
