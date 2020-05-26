@@ -46,12 +46,15 @@ class ScheduleBot(discord.Client):
         mycursor.execute(f"""set @@session.time_zone = '{credentials['sql_details']['time_zone']}'""")
         mycursor.execute(sql, values)
         self.database.commit()
+        mycursor.close()
 
     def db_select(self, sql, values):
         mycursor = self.database.cursor()
         mycursor.execute(f"""set @@session.time_zone = '{credentials['sql_details']['time_zone']}'""")
         mycursor.execute(sql, values)
-        return mycursor.fetchall()
+        result = mycursor.fetchall()
+        mycursor.close()
+        return result
 
     def suffix(self, d):
         return 'th' if 11 <= d <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(d % 10, 'th')
