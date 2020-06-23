@@ -2,6 +2,8 @@
 
 Discord Scheduler Bot is a bot that allows people to schedule simple events in their Discord server and have the attendees mentioned when the event is about to begin.
 
+![Screenshot of bot](readme-screenshot.PNG)
+
 ## Commands
 
 All messages to the bot should start with `!schedule`, a space, and then the appropriate command:
