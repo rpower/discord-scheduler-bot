@@ -43,14 +43,12 @@ class ScheduleBot(discord.Client):
 
     def db_insert(self, sql, values):
         mycursor = self.database.cursor()
-        mycursor.execute(f"""set @@session.time_zone = '{credentials['sql_details']['time_zone']}'""")
         mycursor.execute(sql, values)
         self.database.commit()
         mycursor.close()
 
     def db_select(self, sql, values):
         mycursor = self.database.cursor()
-        mycursor.execute(f"""set @@session.time_zone = '{credentials['sql_details']['time_zone']}'""")
         mycursor.execute(sql, values)
         result = mycursor.fetchall()
         mycursor.close()

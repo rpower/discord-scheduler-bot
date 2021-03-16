@@ -1,7 +1,13 @@
 import re
 import datetime
 import discord
+import pytz
 from random import randint
+
+# Define timezones
+est_time = pytz.timezone('US/Eastern')
+uk_time = pytz.timezone('Europe/London')
+datetime_format = '%Y-%m-%d %H:%M'
 
 
 async def create(bot, args, message):
@@ -24,6 +30,9 @@ async def create(bot, args, message):
             # Format date and time
             event_date_and_time_dt = datetime.datetime.strptime(event_time_and_date, '%Y-%m-%d %H:%M')
 
+            # Format date and time to correct timezone
+            event_date_and_time_dt_est = uk_time.localize(event_date_and_time_dt).astimezone(est_time)
+
             event_time_formatted = bot.custom_strftime('%H:%M', event_date_and_time_dt)
             event_date_formatted = bot.custom_strftime('%A, {S} of %B', event_date_and_time_dt)
             event_date_and_time_formatted = event_time_formatted + ' on ' + event_date_formatted
@@ -33,7 +42,7 @@ async def create(bot, args, message):
             sql = f"""
                 insert into {bot.credentials['sql_details']['table_name']} (id, event, attendees, datetime, reminder, creator, server, channel) values (%s, %s, %s, %s, %s, %s, %s, %s)
                 """
-            val = (unique_id, events_list, attendees_list, event_date_and_time_dt, reminder_time, message.author.id, message.guild.id, message.channel.id)
+            val = (unique_id, events_list, attendees_list, event_date_and_time_dt_est, reminder_time, message.author.id, message.guild.id, message.channel.id)
             bot.logger.info(f'Created event {unique_id} in server {message.guild.id}')
             bot.db_insert(sql, val)
 
@@ -84,8 +93,13 @@ async def list(bot, args, message):
     for event in list_of_events:
         embed.add_field(name = 'Event', value = event[1] + ' (' + str(event[0]) + ')')
         embed.add_field(name = 'Attendees', value = event[2].replace(" ", "\n"))
-        event_time_formatted = bot.custom_strftime('%H:%M', event[3])
-        event_date_formatted = bot.custom_strftime('%A, {S} of %B', event[3])
+
+        # Convert time from server time to UK time
+        event_date_time = event[3]
+        event_date_time = est_time.localize(event_date_time).astimezone(uk_time)
+
+        event_time_formatted = bot.custom_strftime('%H:%M', event_date_time)
+        event_date_formatted = bot.custom_strftime('%A, {S} of %B', event_date_time)
         event_date_and_time_formatted = event_time_formatted + ' on ' + event_date_formatted
         embed.add_field(name = 'Date', value = event_date_and_time_formatted)
     bot.logger.info(f'Listed upcoming events in server {message.guild.id}')
