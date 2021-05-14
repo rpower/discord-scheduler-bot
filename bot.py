@@ -1,10 +1,10 @@
-import mysql.connector
 import discord
 import asyncio
 from commands import commands_list
 import json
 import os
 import logging
+from database import *
 
 
 class ScheduleBot(discord.Client):
@@ -20,14 +20,6 @@ class ScheduleBot(discord.Client):
         # Credentials
         self.credentials = credentials
 
-        # Database
-        self.database = mysql.connector.connect(
-            host=credentials['sql_details']['host'],
-            user=credentials['sql_details']['username'],
-            passwd=credentials['sql_details']['pw'],
-            database=credentials['sql_details']['db_name']
-        )
-
         super().__init__()
 
     async def on_ready(self):
@@ -40,19 +32,6 @@ class ScheduleBot(discord.Client):
 
     async def on_server_join(self, server):
         self.logger.info(f'Joined new server: "{server.name}" (id: {server.id}, members: {server.member_count})')
-
-    def db_insert(self, sql, values):
-        mycursor = self.database.cursor()
-        mycursor.execute(sql, values)
-        self.database.commit()
-        mycursor.close()
-
-    def db_select(self, sql, values):
-        mycursor = self.database.cursor()
-        mycursor.execute(sql, values)
-        result = mycursor.fetchall()
-        mycursor.close()
-        return result
 
     def suffix(self, d):
         return 'th' if 11 <= d <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(d % 10, 'th')
@@ -79,67 +58,24 @@ class ScheduleBot(discord.Client):
 
     async def check_upcoming_reminders(self):
         self.logger.info('Checking upcoming events.')
+        print('Checking upcoming events')
         interval_between_checks_in_seconds = 60
-        # Give ourselves a small window to remind people
-        window_to_remind_in_minutes = 1
-
-        get_upcoming_events_sql = f"""
-        select
-            id,
-            event,
-            datetime,
-            creator,
-            attendees,
-            channel,
-            reminder,
-            server
-        from (
-            select
-                id,
-                event,
-                attendees,
-                datetime,
-                creator,
-                server,
-                channel,
-                reminder,
-                timestampdiff(minute, now(), date_sub(datetime, interval reminder minute)) as time_to_reminder
-            from
-                {credentials['sql_details']['table_name']}
-            where
-                datetime > now()
-                and reminded_flag = 0
-        ) a
-        where
-            time_to_reminder <= %s; 
-        """
-
-        set_reminded_flag_sql = f"""
-        update
-            {credentials['sql_details']['table_name']}
-        set
-            reminded_flag = 1
-        where
-            id in (%s)
-        """
 
         while True:
-            vals = (window_to_remind_in_minutes, )
-            events_to_remind = self.db_select(get_upcoming_events_sql, vals)
-            event_ids_to_remind = [item[0] for item in events_to_remind]
+            events_to_remind = get_events_to_remind()
+            events_to_remind = [r[0] for r in events_to_remind]
 
-            for event in events_to_remind:
-                channel_to_remind_id = int(event[5])
+            for events in events_to_remind:
+                channel_to_remind_id = int(events.channel)
                 channel_to_remind = self.get_channel(channel_to_remind_id)
-                time_formatted = event[2].strftime('%H:%M')
-                reminder_message = f':alarm_clock: **Reminder:** {event[1]} in {event[6]} minutes with {event[4]} organised by <@{event[3]}>'
-                self.logger.info(f'Sending reminder message to server {event[7]} regarding event {event[0]}')
+                reminder_period = int((events.datetime - events.reminder_time).total_seconds() / 60)
+
+                reminder_message = f':alarm_clock: **Reminder:** {events.event} in {reminder_period} minutes with {events.attendees} organised by <@{events.creator}>'
+                self.logger.info(f'Sending reminder message to server {events.server} regarding event {events.id}')
                 await channel_to_remind.send(reminder_message)
 
-            if len(events_to_remind) > 0:
-                format_event_ids_to_remind = ','.join(['%s'] * len(event_ids_to_remind))
-                self.logger.info(f'Setting reminded flag for event {event[0]}')
-                self.db_insert(set_reminded_flag_sql % format_event_ids_to_remind, tuple(event_ids_to_remind))
+                # Mark event as reminded
+                mark_events_as_reminded(events.id)
 
             await asyncio.sleep(interval_between_checks_in_seconds)
 
