@@ -1,4 +1,5 @@
 import discord
+from discord.ext import tasks
 import asyncio
 from commands import commands_list
 import json
@@ -20,6 +21,9 @@ class ScheduleBot(discord.Client):
         # Credentials
         self.credentials = credentials
 
+        # Start upcoming events check loop
+        self.check_upcoming_events.start()
+
         super().__init__()
 
     async def on_ready(self):
@@ -28,7 +32,6 @@ class ScheduleBot(discord.Client):
         for server in self.guilds:
             self.logger.info(f'Logged into server: "{server.name}" (id: {server.id}, members: {server.member_count})')
         await self.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="!schedule help"))
-        await self.check_upcoming_reminders()
 
     async def on_server_join(self, server):
         self.logger.info(f'Joined new server: "{server.name}" (id: {server.id}, members: {server.member_count})')
@@ -56,28 +59,26 @@ class ScheduleBot(discord.Client):
             else:
                 bot.logger.info(f'Invalid command in server {message.guild.id}. Attempted message: "{message.content}"')
 
-    async def check_upcoming_reminders(self):
-        self.logger.info('Checking upcoming events.')
-        print('Checking upcoming events')
-        interval_between_checks_in_seconds = 60
+    @tasks.loop(seconds = 60.0)
+    async def check_upcoming_events(self):
+        events_to_remind = get_events_to_remind()
+        events_to_remind = [r[0] for r in events_to_remind]
 
-        while True:
-            events_to_remind = get_events_to_remind()
-            events_to_remind = [r[0] for r in events_to_remind]
+        for events in events_to_remind:
+            channel_to_remind_id = int(events.channel)
+            channel_to_remind = self.get_channel(channel_to_remind_id)
+            reminder_period = int((events.datetime - events.reminder_time).total_seconds() / 60)
 
-            for events in events_to_remind:
-                channel_to_remind_id = int(events.channel)
-                channel_to_remind = self.get_channel(channel_to_remind_id)
-                reminder_period = int((events.datetime - events.reminder_time).total_seconds() / 60)
+            reminder_message = f':alarm_clock: **Reminder:** {events.event} in {reminder_period} minutes with {events.attendees} organised by <@{events.creator}>'
+            self.logger.info(f'Sending reminder message to server {events.server} regarding event {events.id}')
+            await channel_to_remind.send(reminder_message)
 
-                reminder_message = f':alarm_clock: **Reminder:** {events.event} in {reminder_period} minutes with {events.attendees} organised by <@{events.creator}>'
-                self.logger.info(f'Sending reminder message to server {events.server} regarding event {events.id}')
-                await channel_to_remind.send(reminder_message)
+            # Mark event as reminded
+            mark_events_as_reminded(events.id)
 
-                # Mark event as reminded
-                mark_events_as_reminded(events.id)
-
-            await asyncio.sleep(interval_between_checks_in_seconds)
+    @check_upcoming_events.before_loop
+    async def before_check_upcoming_events(self):
+        await self.wait_until_ready()
 
 if os.path.isfile('credentials.json'):
     with open('credentials.json') as credentials_file:
