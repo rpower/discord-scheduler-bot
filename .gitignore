@@ -5,6 +5,7 @@ useful_commands.txt
 .idea/
 bot.log
 startup.sh
+events.db
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
