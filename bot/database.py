@@ -1,20 +1,40 @@
-import json
+import os
 import sqlalchemy as db
-from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from sqlalchemy.orm import declarative_base, sessionmaker
 import datetime
 
+# Environment variables
+table_name = 'events'
+
 now = datetime.datetime.now()
-
-with open('credentials.json') as credentials_file:
-    credentials = json.loads(credentials_file.read())
-
-engine = db.create_engine(credentials['sql_details']['path_to_db'])
-
+engine = db.create_engine(f'sqlite:///../{table_name}.db')
 Base = declarative_base()
 
+def create_table():
+    meta = db.MetaData()
+
+    events_table = db.Table(
+        table_name, meta,
+        db.Column('id', db.BigInteger, primary_key=True),
+        db.Column('event', db.String),
+        db.Column('attendees', db.String),
+        db.Column('datetime', db.String),
+        db.Column('reminder_time', db.String),
+        db.Column('creator', db.String),
+        db.Column('server', db.String),
+        db.Column('channel', db.String),
+        db.Column('reminded_flag', db.String),
+    )
+
+    meta.create_all(engine)
+
+# Create table if it doesn't exist
+does_table_exist = db.inspect(engine).has_table(table_name)
+if not does_table_exist:
+    create_table()
 
 class Event(Base):
-    __tablename__ = credentials['sql_details']['table_name']
+    __tablename__ = table_name
 
     id = db.Column(db.BigInteger, primary_key=True)
     event = db.Column(db.String)

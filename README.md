@@ -1,8 +1,16 @@
 # Discord Scheduler Bot
 
-Discord Scheduler Bot is a bot that allows people to schedule simple events in their Discord server and have the attendees mentioned when the event is about to begin.
+A self-hosted [disnake](https://github.com/DisnakeDev/disnake) bot written in Python that allows people to schedule simple events in their Discord server and have the attendees mentioned when the event is about to begin.
 
 ![Screenshot of bot](readme-screenshot.PNG)
+
+## Installation
+
+1. Clone this repository using `git clone https://github.com/rpower/discord-scheduler-bot`
+2. Install required packages using `pip install -r requirements.txt`
+3. Create two environment variables:
+   1. `BOT_TOKEN` - containing the API token for your Discord bot
+   2. `AVATAR_URL` - a URL containing the avatar image you want to use for your bot's posts
 
 ## Commands
 
@@ -11,16 +19,16 @@ All messages to the bot should start with `!schedule`, a space, and then the app
 Command | Description | Example
 --- | --- | ---
 `help` | List all the commands available | `!schedule help`
-`add` | Create a new event | `!schedule add event [event_name] time [YYYY-MM-DD HH:MM] attendees [attendees]`
-`delete` | Delete an event | `!schedule delete [event_id]`
+`add` | Create a new event | `!schedule add event event_name time YYYY-MM-DD HH:MM attendees attendees_list`
+`delete` | Delete an event | `!schedule delete event_id`
 `list` | Get a list of all upcoming events and IDs | `!schedule list`
 
-* `[event_name]` should be the name of the event you are creating
-* `[YYYY-MM-DD HH:MM]` should be the date and 24 hour time of the event you are creating
-* `[attendees]` should be the people attending the event (you can use the `@user_name` Discord format here as well)
-* `[event_id]` is the ID associated with the event and can be found using the `!schedule list` command
+* `event_name` should be the name of the event you are creating
+* `YYYY-MM-DD HH:MM` should be the date and 24 hour time of the event you are creating
+* `attendees_list` should be the people attending the event (you can use the `@user_name` Discord format here as well)
+* `event_id` is the ID associated with the event and can be found using the `!schedule list` command
 
-By default events are created with a 30 minute reminder, but that can be changed by adding an optional `reminder [reminder_time]` to the end of the `add` command, where `[reminder_time]` is the desired reminder window in minutes.
+By default events are created with a 30 minute reminder, but that can be changed by adding an optional `reminder reminder_time` to the end of the `add` command, where `reminder_time` is the desired reminder window in minutes.
 
 **Example:**
 
