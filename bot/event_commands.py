@@ -104,17 +104,63 @@ async def create_event(ctx, arg, avatar_url):
                     f'Attempted message: "{ctx.message.content}"')
         await ctx.message.channel.send('Invalid arguments.')
 
+async def create_event_slash(ctx, event_name, date_time, attendees, avatar_url):
+    events_list = event_name
+    event_time_and_date = date_time
+    attendees_list = attendees
 
-async def list_upcoming_events(ctx, avatar_url):
+    # Format date and time
+    event_date_and_time_dt = datetime.datetime.strptime(event_time_and_date, '%Y-%m-%d %H:%M')
+
+    reminder_period = 30
+    reminder_time = event_date_and_time_dt - datetime.timedelta(minutes=reminder_period)
+
+    event_time_formatted = custom_strftime('%H:%M', event_date_and_time_dt)
+    event_date_formatted = custom_strftime('%A, {S} of %B', event_date_and_time_dt)
+    event_date_and_time_formatted = event_time_formatted + ' on ' + event_date_formatted
+
+    # Commit to server
+    unique_id = randint(1000000, 9999999)
+    add_new_event(
+        unique_id,
+        events_list,
+        attendees_list,
+        event_date_and_time_dt,
+        reminder_time,
+        ctx.author.id,
+        ctx.guild.id,
+        ctx.channel.id
+    )
+    logger.info(f'Created event "{events_list}" (id: {unique_id}) '
+                f'in server "{ctx.guild.name}" (id: {ctx.guild.id}) '
+                f'for member "{ctx.author.name}" (id: {ctx.author.id})')
+
+    # Send confirmation to channel
+    embed = disnake.Embed(title=events_list, color=2003199)
+    embed.add_field(name='When', value=event_date_and_time_formatted, inline=False)
+    embed.add_field(name='Attendees', value=attendees_list, inline=False)
+    embed.set_author(name=ctx.author.name, icon_url=ctx.author.display_avatar)
+    embed.set_thumbnail(url=avatar_url)
+    embed.set_footer(text=f'Attendees will be reminded {reminder_period} minutes beforehand')
+    await ctx.send(embed=embed)
+    await ctx.send(attendees_list)
+
+async def list_upcoming_events(ctx, avatar_url, slash_command=False):
     # Get server ID
-    server_id = ctx.message.guild.id
+    if slash_command:
+        server_id = ctx.guild.id
+    else:
+        server_id = ctx.message.guild.id
 
     # Get list of events
     list_of_events = get_upcoming_events(server_id)
 
     # Compose response
     embed = disnake.Embed(title='Upcoming events', color=2003199)
-    embed.set_author(name=ctx.message.author.name, icon_url=ctx.message.author.display_avatar)
+    if slash_command:
+        embed.set_author(name=ctx.author.name, icon_url=ctx.author.display_avatar)
+    else:
+        embed.set_author(name=ctx.message.author.name, icon_url=ctx.message.author.display_avatar)
     embed.set_thumbnail(url=avatar_url)
 
     for event in list_of_events:
@@ -126,9 +172,14 @@ async def list_upcoming_events(ctx, avatar_url):
         event_date_formatted = custom_strftime('%A, {S} of %B', event_date_time)
         event_date_and_time_formatted = event_time_formatted + ' on ' + event_date_formatted
         embed.add_field(name='Date', value=event_date_and_time_formatted)
-    logger.info(f'Listed upcoming events in "{ctx.message.guild.name}" (id: {ctx.message.guild.id}) '
-                f'for member "{ctx.message.author.name}" (id: {ctx.message.author.id})')
-    await ctx.message.channel.send(embed=embed)
+    if slash_command:
+        logger.info(f'Listed upcoming events in "{ctx.guild.name}" (id: {ctx.guild.id}) '
+                    f'for member "{ctx.author.name}" (id: {ctx.author.id})')
+        await ctx.send(embed=embed)
+    else:
+        logger.info(f'Listed upcoming events in "{ctx.message.guild.name}" (id: {ctx.message.guild.id}) '
+                    f'for member "{ctx.message.author.name}" (id: {ctx.message.author.id})')
+        await ctx.message.channel.send(embed=embed)
 
 
 async def delete_event(ctx, event_id):
@@ -146,26 +197,48 @@ async def delete_event(ctx, event_id):
                     f'from server "{ctx.message.guild.name}" (id: {ctx.message.guild.id}) '
                     f'for member "{ctx.message.author.name}" (id: {ctx.message.author.id})')
 
+async def delete_event_slash(ctx, event_id):
+    # Check event exists
+    event_id_info = check_single_event_exists(event_id, ctx.author.id, ctx.guild.id)
 
-async def display_help_message(ctx):
+    if event_id_info:
+        delete_single_event(event_id, ctx.author.id, ctx.guild.id)
+        await ctx.send(f'Event `{event_id}` deleted.')
+        logger.info(f'Deleted event {event_id} from server "{ctx.guild.name}" (id: {ctx.guild.id}) '
+                    f'for member "{ctx.author.name}" (id: {ctx.author.id})')
+    else:
+        await ctx.send(f'Could not delete event `{event_id}`. Event does not exist.')
+        logger.info(f'Unable to delete event {event_id} '
+                    f'from server "{ctx.guild.name}" (id: {ctx.guild.id}) '
+                    f'for member "{ctx.author.name}" (id: {ctx.author.id})')
+
+
+async def display_help_message(ctx, slash_command=False):
     embed_title = ':alarm_clock: Event Scheduler Commands'
     embed_description = """
-    **Create a new event**:
+    **COMMANDS**
     
-    `!schedule add event event_name time YYYY-MM-DD HH:MM attendees attendees_list`
+    **/schedule add**
+    Add a new event, for example `/schedule add My Happy Event date_time 2022-09-30 15:30 attendees @Brass Beast Bot`.
     
-    Replace:
+    **/schedule list**
+    List all upcoming events.
     
-    `event_name` with the name of your event
-    `YYYY-MM-DD HH:MM` should be the date and 24 hour time of the event you are creating
-    `attendees` with a list of attendees from the server
-    
-    **List upcoming events**: `!schedule list`
-    **Delete upcoming event**: `!schedule delete event_id`
+    **/schedule delete**
+    Delete an upcoming event.
     
     More information and examples: https://github.com/rpower/discord-scheduler-bot
     """
-    embed = disnake.Embed(title = embed_title, description = embed_description)
-    logger.info(f'Listed help message in server "{ctx.message.guild.name}" (id: {ctx.message.guild.id}) '
-                f'for member "{ctx.message.author.name}" (id: {ctx.message.author.id})')
-    await ctx.message.channel.send(embed = embed)
+    embed = disnake.Embed(
+        title = embed_title,
+        description = embed_description,
+        color = disnake.Colour.from_rgb(70, 94, 141)
+    )
+    if slash_command:
+        logger.info(f'Listed help message in server "{ctx.guild.name}" (id: {ctx.guild.id}) '
+                    f'for member "{ctx.author.name}" (id: {ctx.author.id})')
+        await ctx.send(embed=embed)
+    else:
+        logger.info(f'Listed help message in server "{ctx.message.guild.name}" (id: {ctx.message.guild.id}) '
+                    f'for member "{ctx.message.author.name}" (id: {ctx.message.author.id})')
+        await ctx.message.channel.send(embed = embed)
