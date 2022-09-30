@@ -19,6 +19,8 @@ logger = logging.getLogger(__name__)
 logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
+scheduler_embed_colour = disnake.Colour.from_rgb(70, 94, 141)
+
 # Helper functions
 def generate_date_suffix(day_number):
     """
@@ -84,7 +86,7 @@ async def create_event(ctx, arg, avatar_url):
                         f'for member "{ctx.message.author.name}" (id: {ctx.message.author.id})')
 
             # Send confirmation to channel
-            embed = disnake.Embed(title=events_list, color=2003199)
+            embed = disnake.Embed(title=events_list, color=scheduler_embed_colour)
             embed.add_field(name='When', value=event_date_and_time_formatted, inline=False)
             embed.add_field(name='Attendees', value=attendees_list, inline=False)
             embed.set_author(name=ctx.message.author.name, icon_url=ctx.message.author.display_avatar)
@@ -136,7 +138,7 @@ async def create_event_slash(ctx, event_name, date_time, attendees, avatar_url):
                 f'for member "{ctx.author.name}" (id: {ctx.author.id})')
 
     # Send confirmation to channel
-    embed = disnake.Embed(title=events_list, color=2003199)
+    embed = disnake.Embed(title=events_list, color=scheduler_embed_colour)
     embed.add_field(name='When', value=event_date_and_time_formatted, inline=False)
     embed.add_field(name='Attendees', value=attendees_list, inline=False)
     embed.set_author(name=ctx.author.name, icon_url=ctx.author.display_avatar)
@@ -156,7 +158,7 @@ async def list_upcoming_events(ctx, avatar_url, slash_command=False):
     list_of_events = get_upcoming_events(server_id)
 
     # Compose response
-    embed = disnake.Embed(title='Upcoming events', color=2003199)
+    embed = disnake.Embed(title='Upcoming events', color=scheduler_embed_colour)
     if slash_command:
         embed.set_author(name=ctx.author.name, icon_url=ctx.author.display_avatar)
     else:
@@ -232,7 +234,7 @@ async def display_help_message(ctx, slash_command=False):
     embed = disnake.Embed(
         title = embed_title,
         description = embed_description,
-        color = disnake.Colour.from_rgb(70, 94, 141)
+        color = scheduler_embed_colour
     )
     if slash_command:
         logger.info(f'Listed help message in server "{ctx.guild.name}" (id: {ctx.guild.id}) '
